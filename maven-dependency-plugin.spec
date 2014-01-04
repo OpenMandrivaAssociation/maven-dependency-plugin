@@ -1,46 +1,59 @@
+%{?_javapackages_macros:%_javapackages_macros}
 Name:           maven-dependency-plugin
-Version:        2.2
-Release:        0.4.svn949573
+Version:        2.8
+Release:        1.0%{?dist}
 Summary:        Plugin to manipulate, copy and unpack local and remote artifacts
 
-Group:          Development/Java
+
 License:        ASL 2.0
 URL:            http://maven.apache.org/plugins/%{name}
-# we are not using release tag 2.1 because last release has problems with
-# our dependencies and there are 2 outstanding bugs before 2.2 release.
-# svn export -r 949573 http://svn.apache.org/repos/asf/maven/plugins/trunk/maven-dependency-plugin maven-dependency-plugin-2.2
-# tar caf maven-dependency-plugin-2.2.tar.xz maven-dependency-plugin-2.2
-Source0:        %{name}-%{version}.tar.xz
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+Source0:        http://repo2.maven.org/maven2/org/apache/maven/plugins/%{name}/%{version}/%{name}-%{version}-source-release.zip
+Patch0:         0001-Add-setThreshold-stub.patch
+# Added apache-commons-io dep
+Patch1:         %{name}-commons-io.patch
+# Added maven-core dep
+Patch2:         %{name}-core.patch
+# Removed exception catching as it has already been done
+# (not upstreamable)
+Patch4:         %{name}-removed-exception-catching.patch
 
 BuildArch:      noarch
 
-BuildRequires: java-devel >= 0:1.6.0
-BuildRequires: plexus-utils
-BuildRequires: ant-nodeps
-BuildRequires: asm2
-BuildRequires: maven2
-BuildRequires: maven-install-plugin
-BuildRequires: maven-compiler-plugin
-BuildRequires: maven-plugin-plugin
-BuildRequires: maven-resources-plugin
-BuildRequires: maven-surefire-maven-plugin
-BuildRequires: maven-surefire-provider-junit
-BuildRequires: maven-jar-plugin
-BuildRequires: maven-javadoc-plugin
-BuildRequires: maven-shared-dependency-analyzer
-BuildRequires: maven-shared-dependency-tree
-BuildRequires: maven-shared-common-artifact-filters
-Requires: maven2
-Requires: jpackage-utils
-Requires: java
-Requires: maven-shared-common-artifact-filters
-Requires: maven-shared-dependency-analyzer
-Requires(post): jpackage-utils
-Requires(postun): jpackage-utils
+BuildRequires:  maven-local
+BuildRequires:  mvn(classworlds:classworlds)
+BuildRequires:  mvn(commons-collections:commons-collections)
+BuildRequires:  mvn(commons-lang:commons-lang)
+BuildRequires:  mvn(junit:junit)
+BuildRequires:  mvn(org.apache.commons:commons-io)
+BuildRequires:  mvn(org.apache.maven.doxia:doxia-sink-api)
+BuildRequires:  mvn(org.apache.maven.doxia:doxia-site-renderer)
+BuildRequires:  mvn(org.apache.maven.plugin-testing:maven-plugin-testing-harness)
+BuildRequires:  mvn(org.apache.maven.plugin-testing:maven-plugin-testing-tools)
+BuildRequires:  mvn(org.apache.maven.plugin-tools:maven-plugin-annotations)
+BuildRequires:  mvn(org.apache.maven.plugins:maven-plugins)
+BuildRequires:  mvn(org.apache.maven.reporting:maven-reporting-api)
+BuildRequires:  mvn(org.apache.maven.reporting:maven-reporting-impl)
+BuildRequires:  mvn(org.apache.maven.shared:file-management)
+BuildRequires:  mvn(org.apache.maven.shared:maven-common-artifact-filters)
+BuildRequires:  mvn(org.apache.maven.shared:maven-dependency-analyzer) >= 1.4
+BuildRequires:  mvn(org.apache.maven.shared:maven-dependency-tree)
+BuildRequires:  mvn(org.apache.maven.shared:maven-invoker)
+BuildRequires:  mvn(org.apache.maven.shared:maven-plugin-testing-harness)
+BuildRequires:  mvn(org.apache.maven:maven-artifact)
+BuildRequires:  mvn(org.apache.maven:maven-artifact-manager)
+BuildRequires:  mvn(org.apache.maven:maven-core)
+BuildRequires:  mvn(org.apache.maven:maven-model)
+BuildRequires:  mvn(org.apache.maven:maven-plugin-api)
+BuildRequires:  mvn(org.apache.maven:maven-project)
+BuildRequires:  mvn(org.apache.maven:maven-repository-metadata)
+BuildRequires:  mvn(org.codehaus.plexus:plexus-archiver)
+BuildRequires:  mvn(org.codehaus.plexus:plexus-container-default)
+BuildRequires:  mvn(org.codehaus.plexus:plexus-interpolation)
+BuildRequires:  mvn(org.codehaus.plexus:plexus-io)
+BuildRequires:  mvn(org.codehaus.plexus:plexus-utils)
 
-Obsoletes: maven2-plugin-dependency <= 0:2.0.8
-Provides: maven2-plugin-dependency = 1:%{version}-%{release}
+Obsoletes:      maven2-plugin-dependency <= 0:2.0.8
+Provides:       maven2-plugin-dependency = 1:%{version}-%{release}
 
 %description
 
@@ -49,69 +62,92 @@ artifacts. It can copy and/or unpack artifacts from local or remote
 repositories to a specified location.
 
 %package javadoc
-Group:          Development/Java
+
 Summary:        API documentation for %{name}
-Requires:       jpackage-utils
 
 %description javadoc
 %{summary}.
 
 
 %prep
-%setup -q #You may need to update this according to your Source0
+%setup -q
 
-# we have newer classworlds in Fedora, so fix test case
+%patch0 -p1
+%patch1 -p1
+%patch2 -p1
+%patch4 -p1
+
 sed -i \
     's:org.codehaus.classworlds.ClassRealm:org.codehaus.plexus.classworlds.realm.ClassRealm:' \
     src/test/java/org/apache/maven/plugin/dependency/its/AbstractDependencyPluginITCase.java
 
+
 %build
-export MAVEN_REPO_LOCAL=$(pwd)/.m2/repository
-# tests failures are ignored because they are failing in jpp mode
-# Need more time to investigate/fix this
-mvn-jpp \
-        -e \
-        -Dmaven.repo.local=$MAVEN_REPO_LOCAL \
-        -Dmaven.test.failure.ignore=true \
-        install javadoc:javadoc
+# Tests fail to compile because they use unsupported legacy API.
+%mvn_build -f
 
 %install
-rm -rf %{buildroot}
+%mvn_install
 
-# jars
-install -Dpm 644 target/%{name}-%{version}-SNAPSHOT.jar %{buildroot}%{_javadir}/%{name}-%{version}.jar
+%files -f .mfiles
+%dir %{_javadir}/%{name}
+%doc LICENSE NOTICE
 
-(cd %{buildroot}%{_javadir} && for jar in *-%{version}*; \
-    do ln -sf ${jar} `echo $jar| sed "s|-%{version}||g"`; done)
+%files javadoc -f .mfiles-javadoc
+%doc LICENSE NOTICE
 
-%add_to_maven_depmap org.apache.maven.plugins %{name} %{version} JPP %{name}
+%changelog
+* Tue May 21 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.8-1
+- Update to upstream version 2.8
 
-# poms
-install -Dpm 644 pom.xml %{buildroot}%{_mavenpomdir}/JPP-%{name}.pom
+* Fri Mar 15 2013 Michal Srb <msrb@redhat.com> - 2.7-1
+- Update to upstream version 2.7
 
-# javadoc
-install -dm 755 %{buildroot}%{_javadocdir}/%{name}-%{version}
-cp -pr target/site/api*/* %{buildroot}%{_javadocdir}/%{name}-%{version}/
-ln -s %{name}-%{version} %{buildroot}%{_javadocdir}/%{name}
-rm -rf target/site/api*
+* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.6-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
 
-%post
-%update_maven_depmap
+* Wed Jan 23 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.6-1
+- Update to upstream version 2.6
+- Build with xmvn
+- Install license files
 
-%postun
-%update_maven_depmap
+* Tue Jan 22 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.5.1-2
+- Remove unneeded BR: asm2
 
-%clean
-rm -rf %{buildroot}
+* Tue Aug 28 2012 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.5.1-1
+- Update to upstream version 2.5.1
 
-%files
-%defattr(-,root,root,-)
-%{_javadir}/*
-%{_mavenpomdir}/*
-%{_mavendepmapfragdir}/*
+* Thu Jul 19 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.4-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
 
-%files javadoc
-%defattr(-,root,root,-)
-%{_javadocdir}/%{name}-%{version}
-%{_javadocdir}/%{name}
+* Tue Feb 21 2012 Tomas Radej <tradej@redhat.com> - 2.4-1
+- Updated to the upstream version
+- Partially removed a test because of a legacy class use
+- Removed exception checking as it has already been done
 
+* Fri Jan 13 2012 Alexander Kurtakov <akurtako@redhat.com> 2.3-3
+- Add missing BR.
+
+* Fri Jan 13 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.3-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
+
+* Mon Jul 11 2011 Stanislav Ochotnicky <sochotnicky@redhat.com> - 2.3-1
+- Update to latest upstream
+
+* Tue Jun 28 2011 Alexander Kurtakov <akurtako@redhat.com> 2.2-2
+- BR/R maven-shared-file-management.
+
+* Tue Apr 26 2011 Alexander Kurtakov <akurtako@redhat.com> 2.2-1
+- Update to 2.2 final release.
+
+* Tue Feb 08 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.2-0.4.svn949573
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
+
+* Tue Sep  7 2010 Stanislav Ochotnicky <sochotnicky@redhat.com> - 2.2-0.3.svn949573
+- Fix test case to expect new classworlds
+
+* Tue Jun 15 2010 Alexander Kurtakov <akurtako@redhat.com> 2.2-0.2.svn949573
+- Add missing Requires.
+
+* Thu Jun  3 2010 Stanislav Ochotnicky <sochotnicky@redhat.com> - 2.2-0.1.svn949573
+- Initial package
