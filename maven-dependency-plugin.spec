@@ -89,6 +89,11 @@ sed -i \
 %install
 %mvn_install
 
+%if 0%{?fedora}
+%else
+sed -i 's|<version>1.1</version>||' %{buildroot}%{_mavendepmapfragdir}/*
+%endif
+
 %files -f .mfiles
 %dir %{_javadir}/%{name}
 %doc LICENSE NOTICE
