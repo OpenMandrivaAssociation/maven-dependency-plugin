@@ -1,10 +1,10 @@
 %{?_javapackages_macros:%_javapackages_macros}
 Name:           maven-dependency-plugin
-Version:        2.8
-Release:        1.0%{?dist}
+Version:        2.9
+Release:        1%{?dist}
 Summary:        Plugin to manipulate, copy and unpack local and remote artifacts
 
-
+Group:          System/Libraries
 License:        ASL 2.0
 URL:            http://maven.apache.org/plugins/%{name}
 Source0:        http://repo2.maven.org/maven2/org/apache/maven/plugins/%{name}/%{version}/%{name}-%{version}-source-release.zip
@@ -15,12 +15,11 @@ Patch1:         %{name}-commons-io.patch
 Patch2:         %{name}-core.patch
 # Removed exception catching as it has already been done
 # (not upstreamable)
-Patch4:         %{name}-removed-exception-catching.patch
+Patch3:         %{name}-removed-exception-catching.patch
 
 BuildArch:      noarch
 
 BuildRequires:  maven-local
-BuildRequires:  mvn(classworlds:classworlds)
 BuildRequires:  mvn(commons-collections:commons-collections)
 BuildRequires:  mvn(commons-lang:commons-lang)
 BuildRequires:  mvn(junit:junit)
@@ -30,7 +29,6 @@ BuildRequires:  mvn(org.apache.maven.doxia:doxia-site-renderer)
 BuildRequires:  mvn(org.apache.maven.plugin-testing:maven-plugin-testing-harness)
 BuildRequires:  mvn(org.apache.maven.plugin-testing:maven-plugin-testing-tools)
 BuildRequires:  mvn(org.apache.maven.plugin-tools:maven-plugin-annotations)
-BuildRequires:  mvn(org.apache.maven.plugins:maven-plugins)
 BuildRequires:  mvn(org.apache.maven.reporting:maven-reporting-api)
 BuildRequires:  mvn(org.apache.maven.reporting:maven-reporting-impl)
 BuildRequires:  mvn(org.apache.maven.shared:file-management)
@@ -52,9 +50,6 @@ BuildRequires:  mvn(org.codehaus.plexus:plexus-interpolation)
 BuildRequires:  mvn(org.codehaus.plexus:plexus-io)
 BuildRequires:  mvn(org.codehaus.plexus:plexus-utils)
 
-Obsoletes:      maven2-plugin-dependency <= 0:2.0.8
-Provides:       maven2-plugin-dependency = 1:%{version}-%{release}
-
 %description
 
 The dependency plugin provides the capability to manipulate
@@ -62,7 +57,7 @@ artifacts. It can copy and/or unpack artifacts from local or remote
 repositories to a specified location.
 
 %package javadoc
-
+Group:          Documentation
 Summary:        API documentation for %{name}
 
 %description javadoc
@@ -75,12 +70,7 @@ Summary:        API documentation for %{name}
 %patch0 -p1
 %patch1 -p1
 %patch2 -p1
-%patch4 -p1
-
-sed -i \
-    's:org.codehaus.classworlds.ClassRealm:org.codehaus.plexus.classworlds.realm.ClassRealm:' \
-    src/test/java/org/apache/maven/plugin/dependency/its/AbstractDependencyPluginITCase.java
-
+%patch3 -p1
 
 %build
 # Tests fail to compile because they use unsupported legacy API.
@@ -88,11 +78,6 @@ sed -i \
 
 %install
 %mvn_install
-
-%if 0%{?fedora}
-%else
-sed -i 's|<version>1.1</version>||' %{buildroot}%{_mavendepmapfragdir}/*
-%endif
 
 %files -f .mfiles
 %dir %{_javadir}/%{name}
@@ -102,6 +87,18 @@ sed -i 's|<version>1.1</version>||' %{buildroot}%{_mavendepmapfragdir}/*
 %doc LICENSE NOTICE
 
 %changelog
+* Mon Sep 22 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.9-1
+- Update to upstream version 2.9
+
+* Wed Jun 11 2014 Alexander Kurtakov <akurtako@redhat.com> 2.8-4
+- Fix building by dropping useless BRs.
+
+* Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.8-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
+
+* Tue Mar 04 2014 Stanislav Ochotnicky <sochotnicky@redhat.com> - 2.8-2
+- Use Requires: java-headless rebuild (#1067528)
+
 * Tue May 21 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 2.8-1
 - Update to upstream version 2.8
 
@@ -156,3 +153,4 @@ sed -i 's|<version>1.1</version>||' %{buildroot}%{_mavendepmapfragdir}/*
 
 * Thu Jun  3 2010 Stanislav Ochotnicky <sochotnicky@redhat.com> - 2.2-0.1.svn949573
 - Initial package
+
